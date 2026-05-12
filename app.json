@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "regret-nothing",
+    "name": "Do It or Regret It",
     "slug": "regret-nothing",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -24,6 +24,9 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
-    }
+    },
+    "plugins": [
+      "@react-native-community/datetimepicker"
+    ]
   }
 }
