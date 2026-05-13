@@ -5,11 +5,13 @@ import { useApp } from '../context/AppContext';
 import AddTaskModal from '../components/AddTaskModal';
 import TaskCard from '../components/TaskCard';
 import TrashModal from '../components/TrashModal';
+import MessagesModal from '../components/MessagesModal';
 
 export default function TodoScreen({ navigation }) {
   const { theme, tasks, isDark, toggleTheme } = useApp();
   const [addVisible, setAddVisible] = useState(false);
   const [trashVisible, setTrashVisible] = useState(false);
+  const [messagesVisible, setMessagesVisible] = useState(false);
 
   const todoTasks = tasks
     .filter(t => t.status === 'todo')
@@ -36,6 +38,9 @@ export default function TodoScreen({ navigation }) {
         <View style={s.headerActions}>
           <TouchableOpacity onPress={toggleTheme} style={s.iconBtn}>
             <Text style={s.iconBtnText}>{isDark ? '☀️' : '🌙'}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => setMessagesVisible(true)} style={s.iconBtn}>
+            <Text style={s.iconBtnText}>✏️</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={() => setTrashVisible(true)} style={s.iconBtn}>
             <Text style={s.iconBtnText}>🗑️</Text>
@@ -71,6 +76,7 @@ export default function TodoScreen({ navigation }) {
 
       <AddTaskModal visible={addVisible} onClose={() => setAddVisible(false)} />
       <TrashModal visible={trashVisible} onClose={() => setTrashVisible(false)} />
+      <MessagesModal visible={messagesVisible} onClose={() => setMessagesVisible(false)} />
     </SafeAreaView>
   );
 }

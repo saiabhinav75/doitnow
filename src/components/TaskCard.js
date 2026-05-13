@@ -55,15 +55,15 @@ export default function TaskCard({ task }) {
     return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
-  function formatTime(hhmm) {
-    const [h, m] = hhmm.split(':').map(Number);
-    const d = new Date();
-    d.setHours(h, m);
-    return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: true });
+  function formatDeadline(ts) {
+    const d = new Date(ts);
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })
+      + '  ' + d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
   }
 
   const isLater = task.status === 'later';
-  const isDone = task.status === 'done';
+  const isDone  = task.status === 'done';
+  const isOverdue = task.deadlineAt && task.deadlineAt < Date.now() && !isDone;
   const canEdit = task.status === 'todo' || task.status === 'later';
   const s = styles(theme);
 
@@ -96,10 +96,18 @@ export default function TaskCard({ task }) {
             </Text>
             {task.reminderTime && !isDone && (
               <View style={s.reminderBadge}>
-                <Text style={s.reminderBadgeText}>🔔 {formatTime(task.reminderTime)}</Text>
+                <Text style={s.reminderBadgeText}>🔔 {task.reminderTime}</Text>
               </View>
             )}
           </View>
+          {task.deadlineAt && !isDone && (
+            <View style={[s.deadlineRow, isOverdue && s.deadlineRowOverdue]}>
+              <Text style={[s.deadlineText, isOverdue && s.deadlineTextOverdue]}>
+                {isOverdue ? '⚠️ Overdue · ' : '📅 Due · '}
+                {formatDeadline(task.deadlineAt)}
+              </Text>
+            </View>
+          )}
         </View>
 
         <TouchableOpacity
@@ -172,6 +180,16 @@ const styles = t =>
       paddingVertical: 2,
     },
     reminderBadgeText: { fontSize: 10, color: t.accent, fontWeight: '600' },
+    deadlineRow: {
+      alignSelf: 'flex-start',
+      backgroundColor: t.sectionHeader,
+      borderRadius: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 3,
+    },
+    deadlineRowOverdue: { backgroundColor: t.accentLight },
+    deadlineText: { fontSize: 10, color: t.subtext, fontWeight: '600' },
+    deadlineTextOverdue: { color: t.accent },
     dotsBtn: { paddingHorizontal: 10, paddingVertical: 4 },
     dotsText: { fontSize: 22, color: t.subtext, lineHeight: 26 },
     menu: {
