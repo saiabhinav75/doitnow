@@ -11,16 +11,16 @@ Notifications.setNotificationHandler({
 
 export const DEFAULT_MESSAGES = {
   reminder: [
-    "You still have time, do it.",
-    "Do it now or regret later.",
-    "What better do you have apart from this?",
-    "It won't take much time to finish this.",
-    "No procrastination today.",
+    "You still got time to do it.",
+    "Lucky enough the deadline haven't hit yet. ",
+    "What you got better than this?",
+    "Give time to it and see",
+    "No procrastination today, you gotta do this.",
     "Don't be like this. Finish the task.",
   ],
   nearDeadline: [
     "You'll regret it later.",
-    "Now or never.",
+    "Are you a fan of edging?",
     "You got not much time left to finish.",
     "If you fail, you gonna regret.",
     "This is it.",
@@ -34,7 +34,7 @@ export const DEFAULT_MESSAGES = {
     "People never change, not you at least.",
     "Not what I expected.",
     "This is why Sir Arthur Morgan hates you.",
-    "Worthless scum.",
+    "You better give up on your dreams."
   ],
 };
 

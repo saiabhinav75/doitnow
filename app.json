@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Do It or Regret It",
+    "name": "Do It Now",
     "slug": "regret-nothing",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -18,7 +18,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#ff6b00"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.saiabhinavgandesree.doitnow"
@@ -34,6 +34,12 @@
         "projectId": "b6e7520e-6614-492f-9c96-b40631225b21"
       }
     },
-    "owner": "saiabhinavgandesree"
+    "owner": "saiabhinavgandesree",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/b6e7520e-6614-492f-9c96-b40631225b21"
+    }
   }
 }

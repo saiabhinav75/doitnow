@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import {
-  KeyboardAvoidingView,
+  Keyboard,
   Modal,
   Platform,
   Pressable,
@@ -54,6 +54,8 @@ function TimeColumn({ items, selectedIndex, onSelect, theme, width = 64 }) {
         decelerationRate="fast"
         showsVerticalScrollIndicator={false}
         onMomentumScrollEnd={onMomentumScrollEnd}
+        nestedScrollEnabled={true}
+        scrollEventThrottle={16}
       >
         {multiplied.map((item, i) => {
           const actualIdx = i % items.length;
@@ -89,11 +91,9 @@ function DeadlinePicker({ day, month, year, hour, minute, onDayChange, onMonthCh
 
   return (
     <View style={ds.container}>
-      {/* Date row */}
       <View style={s.picker}>
         <TimeColumn items={DAYS}   selectedIndex={day}   onSelect={onDayChange}   theme={theme} width={52} />
         <TimeColumn items={MONTHS} selectedIndex={month} onSelect={onMonthChange} theme={theme} width={56} />
-        {/* Year: simple +/- since only 3 values */}
         <View style={ds.yearPicker}>
           <TouchableOpacity onPress={() => onYearChange(Math.max(0, year - 1))} style={ds.yearBtn}>
             <Text style={ds.yearBtnText}>▲</Text>
@@ -104,7 +104,6 @@ function DeadlinePicker({ day, month, year, hour, minute, onDayChange, onMonthCh
           </TouchableOpacity>
         </View>
       </View>
-      {/* Time row */}
       <View style={[s.picker, { marginTop: 6 }]}>
         <TimeColumn items={HOURS}   selectedIndex={hour}   onSelect={onHourChange}   theme={theme} />
         <Text style={s.sep}>:</Text>
@@ -136,10 +135,10 @@ function fromDeadlineTs(ts) {
   const years = getYears();
   const yearIdx = Math.max(0, years.indexOf(d.getFullYear()));
   return {
-    day:   d.getDate() - 1,
-    month: d.getMonth(),
+    day:    d.getDate() - 1,
+    month:  d.getMonth(),
     yearIdx: yearIdx < 0 ? 0 : yearIdx,
-    hour:  d.getHours(),
+    hour:   d.getHours(),
     minute: d.getMinutes(),
   };
 }
@@ -161,13 +160,11 @@ export default function AddTaskModal({ visible, onClose, task = null }) {
 
   const [text, setText] = useState('');
 
-  // reminder state
   const [reminderOn, setReminderOn] = useState(false);
   const [showReminderPicker, setShowReminderPicker] = useState(false);
   const [rHour, setRHour] = useState(9);
   const [rMinute, setRMinute] = useState(0);
 
-  // deadline state
   const [deadlineOn, setDeadlineOn] = useState(false);
   const [showDeadlinePicker, setShowDeadlinePicker] = useState(false);
   const [dDay,    setDDay]    = useState(new Date().getDate() - 1);
@@ -206,7 +203,8 @@ export default function AddTaskModal({ visible, onClose, task = null }) {
   }, [visible]);
 
   function handleSubmit() {
-    if (!text.trim()) return;
+    if (!canSubmit) return;
+    Keyboard.dismiss();
     const reminderTime = reminderOn ? toHHMM(rHour, rMinute) : null;
     const deadlineAt   = deadlineOn ? toDeadlineTs(dDay, dMonth, dYear, dHour, dMinute) : null;
     if (isEdit) editTask(task.id, text.trim(), reminderTime, deadlineAt);
@@ -215,36 +213,64 @@ export default function AddTaskModal({ visible, onClose, task = null }) {
   }
 
   function handleClose() {
+    Keyboard.dismiss();
     setShowReminderPicker(false);
     setShowDeadlinePicker(false);
     onClose();
   }
 
+  function openReminderPicker() {
+    Keyboard.dismiss();
+    setShowReminderPicker(p => !p);
+  }
+
+  function openDeadlinePicker() {
+    Keyboard.dismiss();
+    setShowDeadlinePicker(p => !p);
+  }
+
+  const deadlineTs = deadlineOn ? toDeadlineTs(dDay, dMonth, dYear, dHour, dMinute) : null;
+  const deadlineIsPast = deadlineTs !== null && deadlineTs <= Date.now();
+  const canSubmit = text.trim() && !deadlineIsPast;
+
   const s = styles(theme);
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <KeyboardAvoidingView style={s.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <View style={s.overlay}>
         <Pressable style={s.backdrop} onPress={handleClose} />
         <View style={s.sheet}>
           <View style={s.handle} />
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            nestedScrollEnabled={true}
+          >
             <Text style={s.title}>{isEdit ? 'Edit Task' : 'New Task'}</Text>
             <Text style={s.subtitle}>
               {isEdit ? 'Update what needs to be done.' : 'What will you regret not doing?'}
             </Text>
 
-            <TextInput
-              style={s.input}
-              placeholder="Describe the task..."
-              placeholderTextColor={theme.subtext}
-              value={text}
-              onChangeText={setText}
-              multiline
-              autoFocus
-              maxLength={300}
-              returnKeyType="done"
-            />
+            <View style={s.inputWrapper}>
+              <TextInput
+                style={s.input}
+                placeholder="Describe the task..."
+                placeholderTextColor={theme.subtext}
+                value={text}
+                onChangeText={setText}
+                multiline
+                autoFocus
+                maxLength={300}
+                blurOnSubmit={true}
+                returnKeyType="done"
+                onSubmitEditing={Keyboard.dismiss}
+                textAlignVertical="top"
+              />
+              <TouchableOpacity style={s.dismissKeyboardBtn} onPress={Keyboard.dismiss}>
+                <Text style={s.dismissKeyboardText}>Done</Text>
+              </TouchableOpacity>
+            </View>
 
             {/* ── Reminder ── */}
             <View style={s.toggleRow}>
@@ -258,7 +284,7 @@ export default function AddTaskModal({ visible, onClose, task = null }) {
             </View>
             {reminderOn && (
               <View style={s.pickerSection}>
-                <TouchableOpacity style={s.timeBtn} onPress={() => setShowReminderPicker(p => !p)}>
+                <TouchableOpacity style={s.timeBtn} onPress={openReminderPicker}>
                   <Text style={s.timeBtnText}>{formatReminderDisplay(rHour, rMinute)}</Text>
                   <Text style={s.timeBtnChevron}>{showReminderPicker ? '▲' : '▼'}</Text>
                 </TouchableOpacity>
@@ -285,11 +311,14 @@ export default function AddTaskModal({ visible, onClose, task = null }) {
             </View>
             {deadlineOn && (
               <View style={s.pickerSection}>
-                <TouchableOpacity style={s.timeBtn} onPress={() => setShowDeadlinePicker(p => !p)}>
+                <TouchableOpacity style={s.timeBtn} onPress={openDeadlinePicker}>
                   <Text style={s.timeBtnText}>{formatDeadline(dDay, dMonth, dYear, dHour, dMinute)}</Text>
                   <Text style={s.timeBtnChevron}>{showDeadlinePicker ? '▲' : '▼'}</Text>
                 </TouchableOpacity>
-                <Text style={s.hint}>Notifies 12h, 6h, 1h before · 1h after</Text>
+                {deadlineIsPast
+                  ? <Text style={s.deadlineError}>Deadline must be in the future</Text>
+                  : <Text style={s.hint}>Notifies 12h, 6h, 1h before · every 6h after for 2 days</Text>
+                }
                 {showDeadlinePicker && (
                   <DeadlinePicker
                     day={dDay} month={dMonth} year={dYear} hour={dHour} minute={dMinute}
@@ -302,9 +331,9 @@ export default function AddTaskModal({ visible, onClose, task = null }) {
             )}
 
             <TouchableOpacity
-              style={[s.submitBtn, !text.trim() && s.submitBtnDisabled]}
+              style={[s.submitBtn, !canSubmit && s.submitBtnDisabled]}
               onPress={handleSubmit}
-              disabled={!text.trim()}
+              disabled={!canSubmit}
               activeOpacity={0.8}
             >
               <Text style={s.submitBtnText}>{isEdit ? 'SAVE CHANGES' : 'ADD TASK'}</Text>
@@ -315,7 +344,7 @@ export default function AddTaskModal({ visible, onClose, task = null }) {
             </TouchableOpacity>
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -362,7 +391,7 @@ const styles = t => StyleSheet.create({
     borderTopLeftRadius: 24, borderTopRightRadius: 24,
     padding: 24, paddingBottom: 40,
     borderTopWidth: 1, borderColor: t.border,
-    maxHeight: '90%',
+    maxHeight: '92%',
   },
   handle: {
     width: 36, height: 4, backgroundColor: t.border,
@@ -370,11 +399,18 @@ const styles = t => StyleSheet.create({
   },
   title: { fontSize: 20, fontWeight: '800', color: t.text, marginBottom: 4 },
   subtitle: { fontSize: 13, color: t.subtext, fontStyle: 'italic', marginBottom: 16 },
+  inputWrapper: { marginBottom: 16 },
   input: {
     backgroundColor: t.card, borderWidth: 1, borderColor: t.border, borderRadius: 12,
     color: t.text, fontSize: 15, padding: 14, minHeight: 90,
-    textAlignVertical: 'top', marginBottom: 16,
+    textAlignVertical: 'top',
   },
+  dismissKeyboardBtn: {
+    alignSelf: 'flex-end', marginTop: 6,
+    paddingHorizontal: 12, paddingVertical: 5,
+    backgroundColor: t.sectionHeader, borderRadius: 8,
+  },
+  dismissKeyboardText: { fontSize: 13, color: t.accent, fontWeight: '700' },
   toggleRow: {
     flexDirection: 'row', alignItems: 'center',
     justifyContent: 'space-between', marginBottom: 10,
@@ -389,6 +425,7 @@ const styles = t => StyleSheet.create({
   timeBtnText: { fontSize: 15, fontWeight: '700', color: t.accent },
   timeBtnChevron: { fontSize: 10, color: t.accent },
   hint: { fontSize: 12, color: t.subtext, fontStyle: 'italic' },
+  deadlineError: { fontSize: 12, color: t.destructive, fontWeight: '600' },
   submitBtn: {
     backgroundColor: t.accent, borderRadius: 12,
     paddingVertical: 15, alignItems: 'center', marginBottom: 10, marginTop: 6,
