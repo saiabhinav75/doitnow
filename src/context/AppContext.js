@@ -1,5 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useRef, useState } from 'react';
 import { darkTheme, lightTheme } from '../theme';
 import {
   cancelReminders,
@@ -20,6 +20,10 @@ export function AppProvider({ children }) {
   const [isDark, setIsDark] = useState(true);
   const [messages, setMessages] = useState(DEFAULT_MESSAGES);
   const [loaded, setLoaded] = useState(false);
+  const [toast, setToast] = useState(null);
+  const tasksRef = useRef(tasks);
+
+  useEffect(() => { tasksRef.current = tasks; }, [tasks]);
 
   useEffect(() => {
     Promise.all([
@@ -27,9 +31,9 @@ export function AppProvider({ children }) {
       AsyncStorage.getItem(THEME_KEY),
       AsyncStorage.getItem(MESSAGES_KEY),
     ]).then(([tasksData, themeData, messagesData]) => {
-      if (tasksData)    setTasks(JSON.parse(tasksData));
+      if (tasksData)          setTasks(JSON.parse(tasksData));
       if (themeData !== null) setIsDark(JSON.parse(themeData));
-      if (messagesData) setMessages(JSON.parse(messagesData));
+      if (messagesData)       setMessages(JSON.parse(messagesData));
       setLoaded(true);
     });
     requestPermissions();
@@ -46,6 +50,11 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (loaded) AsyncStorage.setItem(MESSAGES_KEY, JSON.stringify(messages));
   }, [messages, loaded]);
+
+  function showToast(message) {
+    setToast(message);
+    setTimeout(() => setToast(null), 2000);
+  }
 
   function updateMessages(category, newList) {
     if (category === '__reset__') {
@@ -73,14 +82,12 @@ export function AppProvider({ children }) {
       notificationIds: [...reminderIds, ...deadlineIds],
     };
     setTasks(prev => [task, ...prev]);
+    showToast('Task added');
   }
 
   async function editTask(id, description, reminderTime = null, deadlineAt = null) {
-    setTasks(prev => {
-      const task = prev.find(t => t.id === id);
-      if (task) cancelReminders(task.notificationIds);
-      return prev;
-    });
+    const existing = tasksRef.current.find(t => t.id === id);
+    if (existing) cancelReminders(existing.notificationIds);
 
     const [reminderIds, deadlineIds] = await Promise.all([
       reminderTime ? scheduleReminders(description, reminderTime, messages) : Promise.resolve([]),
@@ -94,30 +101,36 @@ export function AppProvider({ children }) {
           : t
       )
     );
+    showToast('Task updated');
   }
 
   function moveTask(id, newStatus) {
-    setTasks(prev => {
-      const task = prev.find(t => t.id === id);
-      if (task && newStatus === 'done') cancelReminders(task.notificationIds);
-      return prev.map(t =>
+    const task = tasksRef.current.find(t => t.id === id);
+    if (task && newStatus === 'done') cancelReminders(task.notificationIds);
+    setTasks(prev =>
+      prev.map(t =>
         t.id === id
-          ? { ...t, status: newStatus, completedAt: newStatus === 'done' ? Date.now() : t.completedAt, notificationIds: newStatus === 'done' ? [] : t.notificationIds }
+          ? {
+              ...t,
+              status: newStatus,
+              completedAt: newStatus === 'done' ? Date.now() : t.completedAt,
+              notificationIds: newStatus === 'done' ? [] : t.notificationIds,
+            }
           : t
-      );
-    });
+      )
+    );
   }
 
   function deleteTask(id, reason) {
-    setTasks(prev => {
-      const task = prev.find(t => t.id === id);
-      if (task) cancelReminders(task.notificationIds);
-      return prev.map(t =>
+    const task = tasksRef.current.find(t => t.id === id);
+    if (task) cancelReminders(task.notificationIds);
+    setTasks(prev =>
+      prev.map(t =>
         t.id === id
           ? { ...t, status: 'deleted', deletedAt: Date.now(), deleteReason: reason, notificationIds: [] }
           : t
-      );
-    });
+      )
+    );
   }
 
   function permanentlyDeleteTask(id) {
@@ -133,9 +146,9 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider
       value={{
-        tasks, isDark, theme, messages,
+        tasks, isDark, theme, messages, toast,
         toggleTheme: () => setIsDark(d => !d),
-        updateMessages,
+        updateMessages, showToast,
         addTask, editTask, moveTask, deleteTask, permanentlyDeleteTask, emptyTrash,
       }}
     >

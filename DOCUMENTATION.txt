@@ -1,0 +1,252 @@
+================================================================================
+  DO IT NOW — Project Documentation
+================================================================================
+App name    : Do It Now
+Slug        : regret-nothing
+Package     : com.saiabhinavgandesree.doitnow
+Version     : 1.0.0
+Platform    : Android (Expo managed workflow, SDK 54)
+EAS Project : b6e7520e-6614-492f-9c96-b40631225b21
+EAS Owner   : saiabhinavgandesree
+Build profile: preview (APK, internal distribution)
+OTA branch  : preview
+
+
+================================================================================
+  TECH STACK
+================================================================================
+- React Native (via Expo SDK 54, blank template)
+- expo-notifications       — local scheduled notifications
+- expo-updates             — OTA (over-the-air) JS updates
+- @react-native-async-storage/async-storage v2  — persistence
+- @react-navigation/native + @react-navigation/bottom-tabs  — navigation
+- react-native-safe-area-context  — Android edge-to-edge safe areas
+- EAS Build  — cloud APK builds
+- EAS Update — OTA JS pushes (no rebuild needed for JS changes)
+
+
+================================================================================
+  PROJECT STRUCTURE
+================================================================================
+regret-nothing/
+├── App.js                          — Root: SafeAreaProvider, AppProvider, Tab navigator, Toast
+├── app.json                        — Expo config (name, icon, package, OTA URL, EAS project ID)
+├── eas.json                        — EAS build profiles (development, preview, production)
+├── assets/
+│   ├── icon.png                    — App icon (orange pencil, 1024x1024)
+│   ├── adaptive-icon.png           — Android adaptive icon (orange pencil)
+│   ├── splash-icon.png             — Splash screen icon
+│   ├── icon-orange.png             — Orange pencil icon (tasks pending)
+│   ├── icon-red.png                — Red pencil icon (overdue tasks) — reserved
+│   └── icon-green.png              — Green pencil icon (all done) — reserved
+└── src/
+    ├── theme.js                    — lightTheme / darkTheme color tokens
+    ├── notifications.js            — Notification scheduling logic + DEFAULT_MESSAGES
+    ├── context/
+    │   └── AppContext.js           — Global state: tasks, theme, messages, toast
+    ├── screens/
+    │   ├── TodoScreen.js           — Main todo list (Todo + Todo Later sections)
+    │   └── DoneScreen.js           — Completed tasks grouped by day
+    └── components/
+        ├── TaskCard.js             — Individual task row with 3-dot action menu
+        ├── AddTaskModal.js         — Add / Edit task bottom sheet
+        ├── DeleteReasonModal.js    — Delete confirmation with reason picker
+        ├── TrashModal.js           — Soft-deleted tasks viewer
+        ├── MessagesModal.js        — In-app notification message editor
+        └── Toast.js               — Animated feedback pill
+
+
+================================================================================
+  FEATURES
+================================================================================
+
+TASKS
+- Add tasks with description (up to 300 chars)
+- Edit tasks (description, reminder, deadline)
+- Three statuses: todo / later / done / deleted (soft delete)
+- Move tasks: Todo ↔ Later, Todo/Later → Done, Done → Todo (restore)
+- Delete with reason (preset chips + free-text input)
+- Overdue badge shown on cards when deadline has passed
+
+SECTIONS (Todo screen)
+- "Todo" section — active tasks, newest first
+- "Todo Later" section — deprioritised tasks, hidden when empty
+- FAB (+) to add new tasks
+
+DONE SCREEN
+- Tasks grouped by completion day (Today / Yesterday / date)
+- Sorted newest-first within each group
+- Total completed count in header
+
+TRASH
+- Soft-deleted tasks stored with reason + deleted timestamp
+- Delete Forever (per item, with confirmation)
+- Empty Trash (all at once, with confirmation)
+- No restore from trash
+
+REMINDERS
+- Optional daily reminder time (HH:MM, 24h, pure JS drum-roll picker)
+- Schedules notifications for 3 consecutive days starting from today
+- Cancelled automatically when task is marked done or deleted
+
+DEADLINES
+- Optional deadline date + time (day/month/year + HH:MM picker)
+- Cannot set a deadline in the past (validated in UI)
+- Near-deadline notifications: 12h, 6h, 1h before
+- Post-deadline notifications: at deadline, +3h, then every 6h until 48h (9 total)
+- All notifications cancelled when task is completed or deleted
+
+NOTIFICATION MESSAGES (in-app editable)
+- Three categories: Reminder / Near Deadline / Post Deadline
+- Editable from ✏️ button in Todo header
+- Add / delete messages per category (minimum 1 per category enforced)
+- Reset to defaults available
+- Persisted in AsyncStorage
+
+THEME
+- Dark mode (default) and light mode
+- Toggle via ☀️/🌙 button in Todo header
+- Persisted across app restarts
+
+TOAST FEEDBACK
+- Brief animated pill shown after adding or editing a task
+
+
+================================================================================
+  NOTIFICATION SCHEDULE DETAIL
+================================================================================
+
+Reminder (daily):
+  - Fires at user-selected HH:MM for 3 days
+  - Starts today if time hasn't passed yet, else tomorrow
+
+Near Deadline:
+  - T-12h, T-6h, T-1h before deadline
+  - Only fires if trigger time is still in the future
+
+Post Deadline (if task remains incomplete):
+  - T+0h  (at deadline)
+  - T+3h
+  - T+9h, T+15h, T+21h, T+27h, T+33h, T+39h, T+45h (every 6h)
+  - Total: 9 notifications over 48 hours
+  - All cancelled if task is completed or deleted
+
+Message selection:
+  - Deterministic pick: arr[((seed * 7 + 3) % len + len) % len]
+  - Seed varies per notification slot so different messages show each time
+
+
+================================================================================
+  DATA MODEL (AsyncStorage)
+================================================================================
+
+Key: @doitorregret_tasks
+[
+  {
+    id: string,              // Date.now().toString()
+    description: string,
+    status: 'todo' | 'later' | 'done' | 'deleted',
+    createdAt: number,       // timestamp
+    completedAt: number | null,
+    deletedAt: number | null,
+    deleteReason: string | null,
+    reminderTime: string | null,   // "HH:MM"
+    deadlineAt: number | null,     // timestamp
+    notificationIds: string[],     // expo notification IDs for cancellation
+  }
+]
+
+Key: @doitorregret_dark       — boolean (dark mode on/off)
+Key: @doitorregret_messages   — { reminder: string[], nearDeadline: string[], postDeadline: string[] }
+
+
+================================================================================
+  DEFAULT NOTIFICATION MESSAGES
+================================================================================
+
+Reminder:
+  "You still have time, do it."
+  "Do it now or regret later."
+  "What better do you have apart from this?"
+  "It won't take much time to finish this."
+  "No procrastination today."
+  "Don't be like this. Finish the task."
+
+Near Deadline:
+  "You'll regret it later."
+  "Now or never."
+  "You got not much time left to finish."
+  "If you fail, you gonna regret."
+  "This is it."
+
+Post Deadline:
+  "You are such a waste."
+  "You are a loser."
+  "Can't even do one thing on time."
+  "What a disappointment."
+  "I knew you can't do nothing."
+  "People never change, not you at least."
+  "Not what I expected."
+  "This is why Sir Arthur Morgan hates you."
+  "Worthless scum."
+
+
+================================================================================
+  DRUM-ROLL PICKER (pure JS — no native modules)
+================================================================================
+- Replaces @react-native-community/datetimepicker (not available in Expo Go)
+- ScrollView with snapToInterval={ITEM_H} (44px per item)
+- 3× repeated array for circular illusion
+- centerY(idx) = (items.length + idx - 1) * ITEM_H
+- On scroll end: actual = (((raw + 1) % len) + len) % len
+- nestedScrollEnabled={true} to prevent outer ScrollView conflict
+- Keyboard dismissed before opening picker to prevent scroll conflicts
+
+
+================================================================================
+  KNOWN LIMITATIONS
+================================================================================
+- Dynamic app icons (per task state) not implemented — Android requires
+  native Activity Aliases config; 3 icon assets are ready in assets/ folder
+- Custom notification sounds not implemented — requires native sound files
+  bundled in APK and separate notification channels per sound type
+- No restore from Trash (by design)
+- OTA updates require the installed APK to have been built with expo-updates
+
+
+================================================================================
+  BUILD & DEPLOY
+================================================================================
+
+Full rebuild (needed for: new native packages, app.json changes, icon changes):
+  eas build -p android --profile preview
+
+OTA update (needed for: all JS/UI/logic changes — no reinstall required):
+  eas update --branch preview --message "description of changes"
+
+App picks up OTA update: close app fully → reopen (downloads) → reopen again (runs)
+
+
+================================================================================
+  BUGS FIXED
+================================================================================
+- Android status bar gap: SafeAreaView from react-native-safe-area-context
+  with edges={['top']} instead of react-native's SafeAreaView
+- Time picker selecting top item instead of middle: fixed centerY formula
+- Notifications not firing: scheduleReminders started at dayOffset=0 (today)
+- Wrong notification title: swapped title/body so task name is the heading
+- Native date picker broken in Expo Go: replaced with pure JS drum-roll picker
+- Keyboard overlapping task input on Android APK: re-added KeyboardAvoidingView
+  with behavior="padding" (not "height" which caused shaking)
+- Screen shaking when keyboard opens: removed KAV or used "padding" mode
+- Picker scrolling outer screen when keyboard open: nestedScrollEnabled + Keyboard.dismiss()
+- Past deadline selectable: added deadlineIsPast validation, blocks submission
+- editTask side effect in setState: replaced with tasksRef pattern
+- DeleteReasonModal keyboard shake: behavior="padding" on Android
+- datetimepicker plugin left in app.json after removal: cleaned up
+- async-storage v3 EAS build failure: downgraded to v2 (v3 Maven dep unavailable)
+
+
+================================================================================
+  LAST UPDATED: 2026-05-20
+================================================================================

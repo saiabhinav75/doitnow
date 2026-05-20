@@ -6,6 +6,7 @@ import { StatusBar } from 'expo-status-bar';
 import { AppProvider, useApp } from './src/context/AppContext';
 import TodoScreen from './src/screens/TodoScreen';
 import DoneScreen from './src/screens/DoneScreen';
+import Toast from './src/components/Toast';
 
 const Tab = createBottomTabNavigator();
 
@@ -19,6 +20,7 @@ function AppNavigator() {
   return (
     <>
       <StatusBar style={isDark ? 'light' : 'dark'} />
+      <Toast />
       <NavigationContainer>
         <Tab.Navigator
           screenOptions={{

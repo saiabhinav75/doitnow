@@ -79,6 +79,9 @@ export default function TaskCard({ task }) {
     menuOptions.push({ label: 'Move to Todo', onPress: () => handleMove('todo') });
     menuOptions.push({ label: 'Move to Done', onPress: () => handleMove('done') });
   }
+  if (task.status === 'done') {
+    menuOptions.push({ label: 'Move to Todo', onPress: () => handleMove('todo') });
+  }
   menuOptions.push({ label: 'Delete Task', onPress: handleDeletePress, destructive: true });
 
   return (

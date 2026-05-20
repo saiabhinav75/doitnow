@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import {
   Keyboard,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -237,7 +238,7 @@ export default function AddTaskModal({ visible, onClose, task = null }) {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <View style={s.overlay}>
+      <KeyboardAvoidingView style={s.overlay} behavior="padding">
         <Pressable style={s.backdrop} onPress={handleClose} />
         <View style={s.sheet}>
           <View style={s.handle} />
@@ -344,7 +345,7 @@ export default function AddTaskModal({ visible, onClose, task = null }) {
             </TouchableOpacity>
           </ScrollView>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

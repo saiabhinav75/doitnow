@@ -40,7 +40,7 @@ export default function DeleteReasonModal({ visible, onClose, onConfirm }) {
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={handleClose}>
-      <KeyboardAvoidingView style={s.overlay} behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+      <KeyboardAvoidingView style={s.overlay} behavior="padding">
         <Pressable style={s.backdrop} onPress={handleClose} />
         <View style={s.sheet}>
           <View style={s.handle} />
