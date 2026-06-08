@@ -55,14 +55,19 @@ export async function requestPermissions() {
   return status === 'granted';
 }
 
-export async function scheduleReminders(description, reminderTime, messages = DEFAULT_MESSAGES) {
+export async function scheduleReminders(description, reminderTime, messages = DEFAULT_MESSAGES, deadlineAt = null) {
   const [hours, minutes] = reminderTime.split(':').map(Number);
   const pool = messages.reminder?.length ? messages.reminder : DEFAULT_MESSAGES.reminder;
   const ids = [];
-  let dayOffset = 0;
-  let scheduledDays = 0;
 
-  while (scheduledDays < 3) {
+  const todayStart = new Date();
+  todayStart.setHours(0, 0, 0, 0);
+
+  const maxDays = deadlineAt
+    ? Math.max(1, Math.ceil((new Date(deadlineAt) - todayStart) / 86400000) + 1)
+    : 7;
+
+  for (let dayOffset = 0; dayOffset < maxDays && dayOffset < 60; dayOffset++) {
     const base = new Date();
     base.setDate(base.getDate() + dayOffset);
     base.setHours(hours, minutes, 0, 0);
@@ -78,11 +83,7 @@ export async function scheduleReminders(description, reminderTime, messages = DE
         },
       });
       ids.push(id);
-      scheduledDays++;
     }
-
-    dayOffset++;
-    if (dayOffset > 10) break;
   }
 
   return ids;

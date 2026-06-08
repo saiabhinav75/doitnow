@@ -18,7 +18,8 @@ OTA branch  : preview
 - React Native (via Expo SDK 54, blank template)
 - expo-notifications       — local scheduled notifications
 - expo-updates             — OTA (over-the-air) JS updates
-- @react-native-async-storage/async-storage v2  — persistence
+- expo-sqlite              — SQLite database for reliable persistence
+- @react-native-async-storage/async-storage v2  — kept for one-time migration only
 - @react-navigation/native + @react-navigation/bottom-tabs  — navigation
 - react-native-safe-area-context  — Android edge-to-edge safe areas
 - EAS Build  — cloud APK builds
@@ -42,6 +43,8 @@ regret-nothing/
 └── src/
     ├── theme.js                    — lightTheme / darkTheme color tokens
     ├── notifications.js            — Notification scheduling logic + DEFAULT_MESSAGES
+    ├── database/
+    │   └── db.js                   — SQLite setup, migration from AsyncStorage, all SQL helpers
     ├── context/
     │   └── AppContext.js           — Global state: tasks, theme, messages, toast
     ├── screens/
@@ -70,7 +73,9 @@ TASKS
 
 SECTIONS (Todo screen)
 - "Todo" section — active tasks, newest first
-- "Todo Later" section — deprioritised tasks, hidden when empty
+- "Todo Later" section — deprioritised tasks, hidden when empty; max 1 month stay
+- Tasks in "Todo Later" auto-activate back to "Todo" after 30 days
+- A notification fires when a "later" task is auto-reactivated
 - FAB (+) to add new tasks
 
 DONE SCREEN
@@ -86,7 +91,10 @@ TRASH
 
 REMINDERS
 - Optional daily reminder time (HH:MM, 24h, pure JS drum-roll picker)
-- Schedules notifications for 3 consecutive days starting from today
+- If task has a deadline: schedules one reminder per day from today up to the deadline date
+- If no deadline: schedules reminders for 7 days from today
+- Paused (cancelled) when task is moved to "Todo Later"
+- Rescheduled fresh from today when task is moved back to "Todo"
 - Cancelled automatically when task is marked done or deleted
 
 DEADLINES
@@ -137,10 +145,13 @@ Message selection:
 
 
 ================================================================================
-  DATA MODEL (AsyncStorage)
+  DATA MODEL (SQLite — doitnow.db)
 ================================================================================
 
-Key: @doitorregret_tasks
+Migration: on first launch after upgrading to SQLite build, existing AsyncStorage
+data is automatically imported into SQLite and marked as migrated.
+
+Table: tasks
 [
   {
     id: string,              // Date.now().toString()
@@ -152,12 +163,17 @@ Key: @doitorregret_tasks
     deleteReason: string | null,
     reminderTime: string | null,   // "HH:MM"
     deadlineAt: number | null,     // timestamp
-    notificationIds: string[],     // expo notification IDs for cancellation
+    notificationIds: string[],          // expo notification IDs for cancellation
+  movedToLaterAt: number | null,      // timestamp when moved to later
+  laterUntil: number | null,          // auto-activate timestamp (movedToLaterAt + 30 days)
+  laterActivateNotifId: string | null, // notification ID for the reactivation alert
   }
 ]
 
-Key: @doitorregret_dark       — boolean (dark mode on/off)
-Key: @doitorregret_messages   — { reminder: string[], nearDeadline: string[], postDeadline: string[] }
+Table: settings (key-value)
+  isDark    — 'true' / 'false'
+  messages  — JSON: { reminder: string[], nearDeadline: string[], postDeadline: string[] }
+  migrated  — 'true' once AsyncStorage migration is complete
 
 
 ================================================================================
@@ -248,5 +264,5 @@ App picks up OTA update: close app fully → reopen (downloads) → reopen again
 
 
 ================================================================================
-  LAST UPDATED: 2026-05-20
+  LAST UPDATED: 2026-06-08 (SQLite migration)
 ================================================================================

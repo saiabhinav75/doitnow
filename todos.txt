@@ -1,0 +1,4 @@
+To do
+- Daily remainder to be set from today to deadline date, if no deadline date then for 1 week from now. 
+- remainder notification should only be active when the todoitem is active. 
+- A todoitem cannot be in "do later" for more than a month, we should set when this should get active. 
