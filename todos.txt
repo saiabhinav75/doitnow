@@ -1,4 +1,8 @@
 To do
-- Daily remainder to be set from today to deadline date, if no deadline date then for 1 week from now. 
-- remainder notification should only be active when the todoitem is active. 
-- A todoitem cannot be in "do later" for more than a month, we should set when this should get active. 
+
+Done
+- Ask everyday why I haven't done this today why is it pending, if done mark as done. also there are daily tasks, which should be done daily. for that what could be done?
+  -> Added "Repeat daily" toggle on tasks (resets to Todo each day after completion).
+     Added a once-per-day check-in modal on app open that lists overdue/pending tasks
+     (including daily ones not yet done today) and lets you either give a reason why
+     it's still pending or mark it done right there.

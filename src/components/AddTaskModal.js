@@ -160,6 +160,7 @@ export default function AddTaskModal({ visible, onClose, task = null }) {
   const isEdit = task !== null;
 
   const [text, setText] = useState('');
+  const [isDaily, setIsDaily] = useState(false);
 
   const [reminderOn, setReminderOn] = useState(false);
   const [showReminderPicker, setShowReminderPicker] = useState(false);
@@ -178,6 +179,7 @@ export default function AddTaskModal({ visible, onClose, task = null }) {
     if (!visible) return;
     if (isEdit) {
       setText(task.description);
+      setIsDaily(!!task.isDaily);
       if (task.reminderTime) {
         const { h, m } = fromHHMM(task.reminderTime);
         setReminderOn(true); setRHour(h); setRMinute(m);
@@ -196,6 +198,7 @@ export default function AddTaskModal({ visible, onClose, task = null }) {
       }
     } else {
       setText('');
+      setIsDaily(false);
       setReminderOn(false); setShowReminderPicker(false); setRHour(9); setRMinute(0);
       setDeadlineOn(false); setShowDeadlinePicker(false);
       setDDay(new Date().getDate() - 1); setDMonth(new Date().getMonth());
@@ -208,8 +211,8 @@ export default function AddTaskModal({ visible, onClose, task = null }) {
     Keyboard.dismiss();
     const reminderTime = reminderOn ? toHHMM(rHour, rMinute) : null;
     const deadlineAt   = deadlineOn ? toDeadlineTs(dDay, dMonth, dYear, dHour, dMinute) : null;
-    if (isEdit) editTask(task.id, text.trim(), reminderTime, deadlineAt);
-    else addTask(text.trim(), reminderTime, deadlineAt);
+    if (isEdit) editTask(task.id, text.trim(), reminderTime, deadlineAt, isDaily);
+    else addTask(text.trim(), reminderTime, deadlineAt, isDaily);
     handleClose();
   }
 
@@ -272,6 +275,22 @@ export default function AddTaskModal({ visible, onClose, task = null }) {
                 <Text style={s.dismissKeyboardText}>Done</Text>
               </TouchableOpacity>
             </View>
+
+            {/* ── Repeat daily ── */}
+            <View style={s.toggleRow}>
+              <Text style={s.toggleLabel}>🔁  Repeat daily</Text>
+              <Switch
+                value={isDaily}
+                onValueChange={setIsDaily}
+                trackColor={{ false: theme.border, true: theme.accent }}
+                thumbColor={isDaily ? '#fff' : theme.subtext}
+              />
+            </View>
+            {isDaily && (
+              <Text style={[s.hint, { marginBottom: 10 }]}>
+                Resets to Todo each day after you mark it done. You'll be asked daily if it's still pending.
+              </Text>
+            )}
 
             {/* ── Reminder ── */}
             <View style={s.toggleRow}>

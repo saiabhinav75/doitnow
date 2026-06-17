@@ -22,12 +22,18 @@ import {
 
 const AppContext = createContext(null);
 
+function dateKey(ts) {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+
 export function AppProvider({ children }) {
   const [tasks, setTasks] = useState([]);
   const [isDark, setIsDark] = useState(true);
   const [messages, setMessages] = useState(DEFAULT_MESSAGES);
   const [loaded, setLoaded] = useState(false);
   const [toast, setToast] = useState(null);
+  const [checkInTasks, setCheckInTasks] = useState([]);
   const tasksRef = useRef(tasks);
   const messagesRef = useRef(messages);
   const dbRef = useRef(null);
@@ -76,8 +82,35 @@ export function AppProvider({ children }) {
         })
       );
 
-      setTasks(activatedTasks);
+      // Reset daily tasks that were completed on a previous day
+      const today = dateKey(now);
+      const resetTasks = await Promise.all(
+        activatedTasks.map(async t => {
+          if (t.isDaily && t.status === 'done' && t.completedAt && dateKey(t.completedAt) !== today) {
+            const updated = { ...t, status: 'todo' };
+            await updateTask(db, updated);
+            return updated;
+          }
+          return t;
+        })
+      );
+
+      setTasks(resetTasks);
       setLoaded(true);
+
+      // Daily check-in: ask about tasks still pending today (once per day)
+      const lastCheckin = await getSetting(db, 'lastCheckinDate');
+      if (lastCheckin !== today) {
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const pending = resetTasks.filter(t =>
+          t.status === 'todo' &&
+          (t.isDaily || t.createdAt < todayStart.getTime()) &&
+          !(t.pendingReasons ?? []).some(r => r.date === today)
+        );
+        if (pending.length > 0) setCheckInTasks(pending);
+        await setSetting(db, 'lastCheckinDate', today);
+      }
     })();
     requestPermissions();
   }, []);
@@ -101,7 +134,7 @@ export function AppProvider({ children }) {
     }
   }
 
-  async function addTask(description, reminderTime = null, deadlineAt = null) {
+  async function addTask(description, reminderTime = null, deadlineAt = null, isDaily = false) {
     const [reminderIds, deadlineIds] = await Promise.all([
       reminderTime ? scheduleReminders(description, reminderTime, messagesRef.current, deadlineAt) : Promise.resolve([]),
       deadlineAt   ? scheduleDeadlineNotifications(description, deadlineAt, messagesRef.current) : Promise.resolve([]),
@@ -120,13 +153,15 @@ export function AppProvider({ children }) {
       movedToLaterAt: null,
       laterUntil: null,
       laterActivateNotifId: null,
+      isDaily,
+      pendingReasons: [],
     };
     setTasks(prev => [task, ...prev]);
     if (dbRef.current) await insertTask(dbRef.current, task);
     showToast('Task added');
   }
 
-  async function editTask(id, description, reminderTime = null, deadlineAt = null) {
+  async function editTask(id, description, reminderTime = null, deadlineAt = null, isDaily = false) {
     const existing = tasksRef.current.find(t => t.id === id);
     if (existing) {
       const allIds = [...(existing.notificationIds || []), existing.laterActivateNotifId].filter(Boolean);
@@ -144,11 +179,29 @@ export function AppProvider({ children }) {
       reminderTime,
       deadlineAt,
       notificationIds: [...reminderIds, ...deadlineIds],
+      isDaily,
     };
 
     setTasks(prev => prev.map(t => t.id === id ? updated : t));
     if (dbRef.current) await updateTask(dbRef.current, updated);
     showToast('Task updated');
+  }
+
+  async function addPendingReason(id, reason) {
+    const task = tasksRef.current.find(t => t.id === id);
+    if (!task) return;
+    const today = dateKey(Date.now());
+    const updated = {
+      ...task,
+      pendingReasons: [...(task.pendingReasons ?? []), { date: today, reason }],
+    };
+    setTasks(prev => prev.map(t => t.id === id ? updated : t));
+    if (dbRef.current) await updateTask(dbRef.current, updated);
+    setCheckInTasks(prev => prev.filter(t => t.id !== id));
+  }
+
+  function dismissCheckIn(id) {
+    setCheckInTasks(prev => prev.filter(t => t.id !== id));
   }
 
   async function moveTask(id, newStatus) {
@@ -196,6 +249,7 @@ export function AppProvider({ children }) {
 
     setTasks(prev => prev.map(t => t.id === id ? updated : t));
     if (dbRef.current) await updateTask(dbRef.current, updated);
+    if (newStatus === 'done') setCheckInTasks(prev => prev.filter(t => t.id !== id));
   }
 
   async function deleteTask(id, reason) {
@@ -237,10 +291,11 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider
       value={{
-        tasks, isDark, theme, messages, toast, loaded,
+        tasks, isDark, theme, messages, toast, loaded, checkInTasks,
         toggleTheme,
         updateMessages, showToast,
         addTask, editTask, moveTask, deleteTask, permanentlyDeleteTask, emptyTrash,
+        addPendingReason, dismissCheckIn,
       }}
     >
       {children}

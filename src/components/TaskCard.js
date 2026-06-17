@@ -102,6 +102,11 @@ export default function TaskCard({ task }) {
                 <Text style={s.reminderBadgeText}>🔔 {task.reminderTime}</Text>
               </View>
             )}
+            {task.isDaily && (
+              <View style={s.reminderBadge}>
+                <Text style={s.reminderBadgeText}>🔁 Daily</Text>
+              </View>
+            )}
           </View>
           {task.deadlineAt && !isDone && (
             <View style={[s.deadlineRow, isOverdue && s.deadlineRowOverdue]}>

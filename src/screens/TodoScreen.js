@@ -6,6 +6,7 @@ import AddTaskModal from '../components/AddTaskModal';
 import TaskCard from '../components/TaskCard';
 import TrashModal from '../components/TrashModal';
 import MessagesModal from '../components/MessagesModal';
+import DailyCheckInModal from '../components/DailyCheckInModal';
 
 export default function TodoScreen({ navigation }) {
   const { theme, tasks, isDark, toggleTheme } = useApp();
@@ -77,6 +78,7 @@ export default function TodoScreen({ navigation }) {
       <AddTaskModal visible={addVisible} onClose={() => setAddVisible(false)} />
       <TrashModal visible={trashVisible} onClose={() => setTrashVisible(false)} />
       <MessagesModal visible={messagesVisible} onClose={() => setMessagesVisible(false)} />
+      <DailyCheckInModal />
     </SafeAreaView>
   );
 }

@@ -29,7 +29,9 @@ export async function setupDb(db) {
       notificationIds      TEXT,
       movedToLaterAt       INTEGER,
       laterUntil           INTEGER,
-      laterActivateNotifId TEXT
+      laterActivateNotifId TEXT,
+      isDaily              INTEGER NOT NULL DEFAULT 0,
+      pendingReasons       TEXT
     );
 
     CREATE TABLE IF NOT EXISTS settings (
@@ -38,7 +40,16 @@ export async function setupDb(db) {
     );
   `);
 
+  await addColumnIfMissing(db, 'tasks', 'isDaily', 'INTEGER NOT NULL DEFAULT 0');
+  await addColumnIfMissing(db, 'tasks', 'pendingReasons', 'TEXT');
+
   await migrateFromAsyncStorage(db);
+}
+
+async function addColumnIfMissing(db, table, column, definition) {
+  const columns = await db.getAllAsync(`PRAGMA table_info(${table})`);
+  if (columns.some(c => c.name === column)) return;
+  await db.execAsync(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
 }
 
 async function migrateFromAsyncStorage(db) {
@@ -84,6 +95,8 @@ function taskToRow(task) {
     $movedToLaterAt:       task.movedToLaterAt ?? null,
     $laterUntil:           task.laterUntil ?? null,
     $laterActivateNotifId: task.laterActivateNotifId ?? null,
+    $isDaily:              task.isDaily ? 1 : 0,
+    $pendingReasons:       JSON.stringify(task.pendingReasons ?? []),
   };
 }
 
@@ -102,6 +115,8 @@ function rowToTask(row) {
     movedToLaterAt:       row.movedToLaterAt ?? null,
     laterUntil:           row.laterUntil ?? null,
     laterActivateNotifId: row.laterActivateNotifId ?? null,
+    isDaily:              !!row.isDaily,
+    pendingReasons:       row.pendingReasons ? JSON.parse(row.pendingReasons) : [],
   };
 }
 
@@ -115,10 +130,12 @@ export async function insertTask(db, task) {
   await db.runAsync(
     `INSERT OR REPLACE INTO tasks
       (id, description, status, createdAt, completedAt, deletedAt, deleteReason,
-       reminderTime, deadlineAt, notificationIds, movedToLaterAt, laterUntil, laterActivateNotifId)
+       reminderTime, deadlineAt, notificationIds, movedToLaterAt, laterUntil, laterActivateNotifId,
+       isDaily, pendingReasons)
      VALUES
       ($id, $description, $status, $createdAt, $completedAt, $deletedAt, $deleteReason,
-       $reminderTime, $deadlineAt, $notificationIds, $movedToLaterAt, $laterUntil, $laterActivateNotifId)`,
+       $reminderTime, $deadlineAt, $notificationIds, $movedToLaterAt, $laterUntil, $laterActivateNotifId,
+       $isDaily, $pendingReasons)`,
     r
   );
 }
@@ -138,7 +155,9 @@ export async function updateTask(db, task) {
       notificationIds = $notificationIds,
       movedToLaterAt = $movedToLaterAt,
       laterUntil = $laterUntil,
-      laterActivateNotifId = $laterActivateNotifId
+      laterActivateNotifId = $laterActivateNotifId,
+      isDaily = $isDaily,
+      pendingReasons = $pendingReasons
      WHERE id = $id`,
     r
   );
