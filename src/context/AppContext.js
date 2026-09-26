@@ -1,10 +1,12 @@
 import * as Notifications from 'expo-notifications';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { darkTheme, lightTheme } from '../theme';
 import {
   cancelReminders,
   DEFAULT_MESSAGES,
   requestPermissions,
+  scheduleDailyFeedbackNotification,
   scheduleDeadlineNotifications,
   scheduleReminders,
 } from '../notifications';
@@ -26,6 +28,8 @@ function dateKey(ts) {
   const d = new Date(ts);
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 }
+
+const CHECKIN_HOUR = 22; // feedback is only collected after 10 PM
 
 export function AppProvider({ children }) {
   const [tasks, setTasks] = useState([]);
@@ -98,22 +102,53 @@ export function AppProvider({ children }) {
       setTasks(resetTasks);
       setLoaded(true);
 
-      // Daily check-in: ask about tasks still pending today (once per day)
-      const lastCheckin = await getSetting(db, 'lastCheckinDate');
-      if (lastCheckin !== today) {
-        const todayStart = new Date();
-        todayStart.setHours(0, 0, 0, 0);
-        const pending = resetTasks.filter(t =>
-          t.status === 'todo' &&
-          (t.isDaily || t.createdAt < todayStart.getTime()) &&
-          !(t.pendingReasons ?? []).some(r => r.date === today)
-        );
-        if (pending.length > 0) setCheckInTasks(pending);
-        await setSetting(db, 'lastCheckinDate', today);
+      // Make sure the recurring "do feedback" notification is scheduled exactly once
+      const feedbackNotifId = await getSetting(db, 'feedbackNotifId');
+      if (!feedbackNotifId) {
+        const id = await scheduleDailyFeedbackNotification();
+        await setSetting(db, 'feedbackNotifId', id);
       }
+
+      // Feedback is only collected after 10 PM (once per day)
+      await maybeRunCheckin(db, resetTasks);
     })();
     requestPermissions();
   }, []);
+
+  async function maybeRunCheckin(db, currentTasks) {
+    const now = new Date();
+    if (now.getHours() < CHECKIN_HOUR) return;
+
+    const today = dateKey(now.getTime());
+    const lastCheckin = await getSetting(db, 'lastCheckinDate');
+    if (lastCheckin === today) return;
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const pending = currentTasks.filter(t =>
+      t.status === 'todo' &&
+      (t.isDaily || t.createdAt < todayStart.getTime()) &&
+      !(t.pendingReasons ?? []).some(r => r.date === today)
+    );
+    if (pending.length > 0) setCheckInTasks(pending);
+    await setSetting(db, 'lastCheckinDate', today);
+  }
+
+  // Catch the 10 PM threshold while the app is open/reopened, not just at cold start
+  useEffect(() => {
+    if (!loaded) return;
+    const recheck = () => {
+      if (dbRef.current) maybeRunCheckin(dbRef.current, tasksRef.current);
+    };
+    const interval = setInterval(recheck, 5 * 60 * 1000);
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'active') recheck();
+    });
+    return () => {
+      clearInterval(interval);
+      sub.remove();
+    };
+  }, [loaded]);
 
   function showToast(message) {
     setToast(message);

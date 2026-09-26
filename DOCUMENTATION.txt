@@ -119,6 +119,17 @@ THEME
 TOAST FEEDBACK
 - Brief animated pill shown after adding or editing a task
 
+DAILY CHECK-IN (10 PM gate)
+- Check-in (list of overdue/pending tasks) now only runs after 22:00 local time,
+  once per day (tracked via 'lastCheckinDate' setting)
+- A recurring daily notification fires at 22:00 ("It's past 10 PM — go give
+  feedback on today's tasks") on its own "daily-feedback" Android channel,
+  scheduled once and remembered via the 'feedbackNotifId' setting so it isn't
+  re-scheduled on every launch
+- Besides the app-open check, an AppState listener + 5-minute interval re-checks
+  the 10 PM threshold while the app is open/foregrounded, so the check-in still
+  triggers if the app was already open when 10 PM passed
+
 
 ================================================================================
   NOTIFICATION SCHEDULE DETAIL
@@ -264,5 +275,5 @@ App picks up OTA update: close app fully → reopen (downloads) → reopen again
 
 
 ================================================================================
-  LAST UPDATED: 2026-06-08 (SQLite migration)
+  LAST UPDATED: 2026-09-26 (10 PM daily check-in gate + feedback notification)
 ================================================================================

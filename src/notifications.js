@@ -50,9 +50,30 @@ export async function requestPermissions() {
       importance: Notifications.AndroidImportance.MAX,
       sound: true,
     });
+    await Notifications.setNotificationChannelAsync('daily-feedback', {
+      name: 'Daily Feedback',
+      importance: Notifications.AndroidImportance.MAX,
+      sound: true,
+    });
   }
   const { status } = await Notifications.requestPermissionsAsync();
   return status === 'granted';
+}
+
+export async function scheduleDailyFeedbackNotification() {
+  return Notifications.scheduleNotificationAsync({
+    content: {
+      title: 'Daily check-in',
+      body: "It's past 10 PM — go give feedback on today's tasks.",
+      sound: true,
+    },
+    trigger: {
+      type: Notifications.SchedulableTriggerInputTypes.DAILY,
+      hour: 22,
+      minute: 0,
+      channelId: 'daily-feedback',
+    },
+  });
 }
 
 export async function scheduleReminders(description, reminderTime, messages = DEFAULT_MESSAGES, deadlineAt = null) {
